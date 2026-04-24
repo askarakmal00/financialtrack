@@ -2,7 +2,7 @@
 
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
-import { formatCurrency, RecurringBill, BillFrequency } from "@/lib/store";
+import { formatCurrency, getAccountBalance, RecurringBill, BillFrequency } from "@/lib/store";
 import { useState } from "react";
 
 const FREQ_LABELS: Record<BillFrequency, string> = { weekly: "Mingguan", monthly: "Bulanan", yearly: "Tahunan" };
@@ -10,13 +10,17 @@ const FREQ_LABELS: Record<BillFrequency, string> = { weekly: "Mingguan", monthly
 export default function BillsPage() {
   const { store, addBill, updateBill, deleteBill, payBill } = useStore();
   const [showModal, setShowModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
   const [editingBill, setEditingBill] = useState<RecurringBill | null>(null);
+  const [selectedBill, setSelectedBill] = useState<RecurringBill | null>(null);
   const [tab, setTab] = useState<"unpaid" | "paid">("unpaid");
   const [form, setForm] = useState({ name: "", amount: "", frequency: "monthly" as BillFrequency, dueDayOrDate: "", categoryId: "cat-5", defaultAccountId: "" });
+  const [payForm, setPayForm] = useState({ accountId: "", note: "" });
 
   const filtered = store.recurringBills.filter((b) => b.status === tab);
   const totalUnpaid = store.recurringBills.filter((b) => b.status === "unpaid").reduce((s, b) => s + b.amount, 0);
   const totalPaidAmt = store.recurringBills.filter((b) => b.status === "paid").reduce((s, b) => s + b.amount, 0);
+  const totalMonthly = store.recurringBills.filter((b) => b.frequency === "monthly").reduce((s, b) => s + b.amount, 0);
 
   const openAdd = () => {
     setEditingBill(null);
@@ -30,6 +34,12 @@ export default function BillsPage() {
     setShowModal(true);
   };
 
+  const openPay = (bill: RecurringBill) => {
+    setSelectedBill(bill);
+    setPayForm({ accountId: bill.defaultAccountId || store.accounts[0]?.id || "", note: "" });
+    setShowPayModal(true);
+  };
+
   const handleSubmit = () => {
     if (!form.name || !form.amount) return;
     const data = { name: form.name, amount: Number(form.amount), frequency: form.frequency, dueDayOrDate: Number(form.dueDayOrDate) || 1, categoryId: form.categoryId, defaultAccountId: form.defaultAccountId, status: "unpaid" as const };
@@ -38,13 +48,20 @@ export default function BillsPage() {
     setShowModal(false);
   };
 
+  const handlePay = () => {
+    if (!selectedBill || !payForm.accountId) return;
+    payBill(selectedBill.id, payForm.accountId);
+    setShowPayModal(false);
+  };
+
   const resetAllBills = () => {
     store.recurringBills.forEach((b) => {
       if (b.status === "paid") updateBill(b.id, { status: "unpaid" });
     });
   };
 
-  const totalMonthly = store.recurringBills.filter((b) => b.frequency === "monthly").reduce((s, b) => s + b.amount, 0);
+  const selectedAcc = store.accounts.find((a) => a.id === payForm.accountId);
+  const selectedAccBalance = selectedAcc ? getAccountBalance(selectedAcc.id, store) : 0;
 
   return (
     <AppLayout>
@@ -110,7 +127,7 @@ export default function BillsPage() {
                       <span className="badge badge-muted">{FREQ_LABELS[bill.frequency]}</span>
                     </div>
                     <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                      Jatuh tgl {bill.dueDayOrDate} • {cat?.name} • via {acc?.name || "-"}
+                      Jatuh tgl {bill.dueDayOrDate} • {cat?.name} • via {acc?.name || "—"}
                     </div>
                   </div>
 
@@ -123,7 +140,7 @@ export default function BillsPage() {
 
                   <div className="flex gap-2" style={{ flexShrink: 0 }}>
                     {bill.status === "unpaid" ? (
-                      <button className="btn btn-success btn-sm" onClick={() => { if (confirm(`Tandai "${bill.name}" sebagai sudah dibayar?\nIni akan membuat transaksi pengeluaran secara otomatis.`)) payBill(bill.id); }}>💳 Bayar</button>
+                      <button className="btn btn-success btn-sm" onClick={() => openPay(bill)}>💳 Bayar</button>
                     ) : (
                       <button className="btn btn-ghost btn-sm" onClick={() => updateBill(bill.id, { status: "unpaid" })}>↩ Batal</button>
                     )}
@@ -137,7 +154,81 @@ export default function BillsPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Pay Modal */}
+      {showPayModal && selectedBill && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowPayModal(false)}>
+          <div className="modal">
+            <div className="modal-header">
+              <span className="modal-title">💳 Bayar Tagihan</span>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowPayModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {/* Bill info */}
+              <div style={{ padding: "0.875rem", background: "var(--bg-input)", borderRadius: 12, border: "1px solid var(--border)", marginBottom: "0.25rem" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)" }}>{selectedBill.name}</div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Jatuh tgl {selectedBill.dueDayOrDate} setiap bulan</div>
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: "1.2rem", color: "var(--accent-red)" }}>{formatCurrency(selectedBill.amount)}</div>
+                </div>
+              </div>
+
+              {/* Account selector */}
+              <div className="form-group">
+                <label className="form-label">Bayar dari Akun</label>
+                <select className="form-select" value={payForm.accountId} onChange={(e) => setPayForm((f) => ({ ...f, accountId: e.target.value }))}>
+                  <option value="">Pilih Akun</option>
+                  {store.accounts.map((a) => {
+                    const bal = getAccountBalance(a.id, store);
+                    return (
+                      <option key={a.id} value={a.id} disabled={bal < selectedBill.amount}>
+                        {a.icon} {a.name} — {formatCurrency(bal)}{bal < selectedBill.amount ? " (saldo kurang)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Account balance preview */}
+              {selectedAcc && (
+                <div style={{ padding: "0.75rem", background: "var(--bg-input)", borderRadius: 10, border: `1px solid ${selectedAccBalance < selectedBill.amount ? "rgba(239,68,68,0.3)" : "var(--border)"}` }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Saldo {selectedAcc.name}</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance >= selectedBill.amount ? "var(--accent-green)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Setelah bayar</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance - selectedBill.amount >= 0 ? "var(--text-primary)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance - selectedBill.amount)}
+                    </span>
+                  </div>
+                  {selectedAccBalance < selectedBill.amount && (
+                    <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--accent-red)" }}>
+                      ⚠️ Saldo tidak cukup untuk membayar tagihan ini
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Catatan (opsional)</label>
+                <input className="form-input" placeholder="Contoh: Bayar via m-banking" value={payForm.note} onChange={(e) => setPayForm((f) => ({ ...f, note: e.target.value }))} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowPayModal(false)}>Batal</button>
+              <button className="btn btn-success" onClick={handlePay} disabled={!payForm.accountId || selectedAccBalance < selectedBill.amount}>
+                ✅ Bayar {formatCurrency(selectedBill.amount)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
@@ -170,7 +261,7 @@ export default function BillsPage() {
                   <input className="form-input" type="number" placeholder="1-31" min={1} max={31} value={form.dueDayOrDate} onChange={(e) => setForm((f) => ({ ...f, dueDayOrDate: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Akun Pembayaran</label>
+                  <label className="form-label">Akun Pembayaran Default</label>
                   <select className="form-select" value={form.defaultAccountId} onChange={(e) => setForm((f) => ({ ...f, defaultAccountId: e.target.value }))}>
                     <option value="">Pilih Akun</option>
                     {store.accounts.map((a) => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}

@@ -2,7 +2,7 @@
 
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
-import { formatCurrency, formatDate, Goal } from "@/lib/store";
+import { formatCurrency, formatDate, Goal, getAccountBalance } from "@/lib/store";
 import { useState } from "react";
 
 const GOAL_ICONS = ["🎯","💻","🏖️","🏠","🚗","💍","📚","✈️","🛡️","💰","🎓","🏋️"];
@@ -15,7 +15,7 @@ export default function GoalsPage() {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [tab, setTab] = useState<"active" | "achieved">("active");
   const [form, setForm] = useState({ name: "", targetAmount: "", currentAmount: "0", deadline: "", note: "", icon: "🎯" });
-  const [contribForm, setContribForm] = useState({ amount: "", contributionDate: new Date().toISOString().split("T")[0], note: "" });
+  const [contribForm, setContribForm] = useState({ accountId: "", amount: "", contributionDate: new Date().toISOString().split("T")[0], note: "" });
 
   const filtered = store.goals.filter((g) => g.status === tab);
   const totalTarget = store.goals.filter((g) => g.status === "active").reduce((s, g) => s + g.targetAmount, 0);
@@ -35,7 +35,7 @@ export default function GoalsPage() {
 
   const openContrib = (goal: Goal) => {
     setSelectedGoal(goal);
-    setContribForm({ amount: "", contributionDate: new Date().toISOString().split("T")[0], note: "" });
+    setContribForm({ accountId: store.accounts[0]?.id || "", amount: "", contributionDate: new Date().toISOString().split("T")[0], note: "" });
     setShowContribModal(true);
   };
 
@@ -58,10 +58,14 @@ export default function GoalsPage() {
   };
 
   const handleContrib = () => {
-    if (!selectedGoal || !contribForm.amount) return;
-    addGoalContribution({ goalId: selectedGoal.id, amount: Number(contribForm.amount), contributionDate: contribForm.contributionDate, note: contribForm.note });
+    if (!selectedGoal || !contribForm.amount || !contribForm.accountId) return;
+    addGoalContribution({ accountId: contribForm.accountId, goalId: selectedGoal.id, amount: Number(contribForm.amount), contributionDate: contribForm.contributionDate, note: contribForm.note });
     setShowContribModal(false);
   };
+
+  const selectedAcc = store.accounts.find((a) => a.id === contribForm.accountId);
+  const selectedAccBalance = selectedAcc ? getAccountBalance(selectedAcc.id, store) : 0;
+  const contribAmountNum = Number(contribForm.amount) || 0;
 
   const getDaysUntilDeadline = (deadline: string) => {
     if (!deadline) return null;
@@ -269,6 +273,43 @@ export default function GoalsPage() {
                 </div>
               </div>
               <div className="form-group">
+                <label className="form-label">Sumber Dana (Akun)</label>
+                <select className="form-select" value={contribForm.accountId} onChange={(e) => setContribForm((f) => ({ ...f, accountId: e.target.value }))}>
+                  <option value="">Pilih Akun</option>
+                  {store.accounts.map((a) => {
+                    const bal = getAccountBalance(a.id, store);
+                    return (
+                      <option key={a.id} value={a.id} disabled={bal < contribAmountNum && contribAmountNum > 0}>
+                        {a.icon} {a.name} — {formatCurrency(bal)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {selectedAcc && contribAmountNum > 0 && (
+                <div style={{ padding: "0.75rem", background: "var(--bg-input)", borderRadius: 10, border: `1px solid ${selectedAccBalance < contribAmountNum ? "rgba(239,68,68,0.3)" : "var(--border)"}`, marginBottom: "0.5rem" }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Saldo {selectedAcc.name}</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance >= contribAmountNum ? "var(--accent-green)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Setelah ditambah</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance - contribAmountNum >= 0 ? "var(--text-primary)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance - contribAmountNum)}
+                    </span>
+                  </div>
+                  {selectedAccBalance < contribAmountNum && (
+                    <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--accent-red)" }}>
+                      ⚠️ Saldo Anda tidak cukup untuk menabung nominal ini
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="form-group">
                 <label className="form-label">Jumlah Tabungan</label>
                 <input className="form-input" type="number" placeholder="0" value={contribForm.amount} onChange={(e) => setContribForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
               </div>
@@ -283,7 +324,7 @@ export default function GoalsPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowContribModal(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleContrib}>💰 Tambah Tabungan</button>
+              <button className="btn btn-primary" disabled={!contribForm.accountId || !contribForm.amount || selectedAccBalance < contribAmountNum} onClick={handleContrib}>💰 Tambah Tabungan</button>
             </div>
           </div>
         </div>

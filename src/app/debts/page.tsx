@@ -2,7 +2,7 @@
 
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
-import { formatCurrency, formatDate, Debt } from "@/lib/store";
+import { formatCurrency, formatDate, Debt, getAccountBalance } from "@/lib/store";
 import { useState } from "react";
 
 export default function DebtsPage() {
@@ -13,7 +13,7 @@ export default function DebtsPage() {
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [form, setForm] = useState({ name: "", lenderName: "", totalAmount: "", monthlyInstallment: "", amountPaid: "0", startDate: "", dueDate: "", note: "" });
-  const [payForm, setPayForm] = useState({ amount: "", paymentDate: new Date().toISOString().split("T")[0], note: "" });
+  const [payForm, setPayForm] = useState({ accountId: "", amount: "", paymentDate: new Date().toISOString().split("T")[0], note: "" });
 
   const filtered = store.debts.filter((d) => d.status === tab);
   const totalActive = store.debts.filter((d) => d.status === "active").reduce((s, d) => s + (d.totalAmount - d.amountPaid), 0);
@@ -33,7 +33,7 @@ export default function DebtsPage() {
 
   const openPay = (debt: Debt) => {
     setSelectedDebt(debt);
-    setPayForm({ amount: String(debt.monthlyInstallment || ""), paymentDate: new Date().toISOString().split("T")[0], note: "" });
+    setPayForm({ accountId: store.accounts[0]?.id || "", amount: String(debt.monthlyInstallment || ""), paymentDate: new Date().toISOString().split("T")[0], note: "" });
     setShowPayModal(true);
   };
 
@@ -46,10 +46,14 @@ export default function DebtsPage() {
   };
 
   const handlePay = () => {
-    if (!selectedDebt || !payForm.amount) return;
-    addDebtPayment({ debtId: selectedDebt.id, amount: Number(payForm.amount), paymentDate: payForm.paymentDate, note: payForm.note });
+    if (!selectedDebt || !payForm.amount || !payForm.accountId) return;
+    addDebtPayment({ accountId: payForm.accountId, debtId: selectedDebt.id, amount: Number(payForm.amount), paymentDate: payForm.paymentDate, note: payForm.note });
     setShowPayModal(false);
   };
+
+  const selectedAcc = store.accounts.find((a) => a.id === payForm.accountId);
+  const selectedAccBalance = selectedAcc ? getAccountBalance(selectedAcc.id, store) : 0;
+  const payAmountNum = Number(payForm.amount) || 0;
 
   const getDaysUntilDue = (dueDate: string) => {
     const diff = new Date(dueDate).getTime() - Date.now();
@@ -242,6 +246,43 @@ export default function DebtsPage() {
                   <span style={{ fontWeight: 700, color: "var(--accent-red)" }}>{formatCurrency(selectedDebt.totalAmount - selectedDebt.amountPaid)}</span>
                 </div>
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Bayar dari Akun</label>
+                <select className="form-select" value={payForm.accountId} onChange={(e) => setPayForm((f) => ({ ...f, accountId: e.target.value }))}>
+                  <option value="">Pilih Akun</option>
+                  {store.accounts.map((a) => {
+                    const bal = getAccountBalance(a.id, store);
+                    return (
+                      <option key={a.id} value={a.id} disabled={bal < payAmountNum && payAmountNum > 0}>
+                        {a.icon} {a.name} — {formatCurrency(bal)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {selectedAcc && payAmountNum > 0 && (
+                <div style={{ padding: "0.75rem", background: "var(--bg-input)", borderRadius: 10, border: `1px solid ${selectedAccBalance < payAmountNum ? "rgba(239,68,68,0.3)" : "var(--border)"}`, marginBottom: "0.5rem" }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Saldo {selectedAcc.name}</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance >= payAmountNum ? "var(--accent-green)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Setelah bayar</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: selectedAccBalance - payAmountNum >= 0 ? "var(--text-primary)" : "var(--accent-red)" }}>
+                      {formatCurrency(selectedAccBalance - payAmountNum)}
+                    </span>
+                  </div>
+                  {selectedAccBalance < payAmountNum && (
+                    <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--accent-red)" }}>
+                      ⚠️ Saldo tidak cukup untuk nominal pembayaran ini
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Jumlah Pembayaran</label>
                 <input className="form-input" type="number" value={payForm.amount} onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
@@ -257,7 +298,7 @@ export default function DebtsPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowPayModal(false)}>Batal</button>
-              <button className="btn btn-success" onClick={handlePay}>💳 Bayar Sekarang</button>
+              <button className="btn btn-success" disabled={!payForm.accountId || !payForm.amount || selectedAccBalance < payAmountNum} onClick={handlePay}>💳 Bayar Sekarang</button>
             </div>
           </div>
         </div>

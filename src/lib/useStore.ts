@@ -71,9 +71,9 @@ export function useStore() {
   const deleteDebt = (id: string) =>
     update((s) => ({ ...s, debts: s.debts.filter((d) => d.id !== id) }));
 
-  const addDebtPayment = (data: Omit<DebtPayment, "id">) =>
+  const addDebtPayment = (data: Omit<DebtPayment, "id"> & { accountId?: string }) =>
     update((s) => {
-      const payment: DebtPayment = { ...data, id: generateId() };
+      const payment: DebtPayment = { debtId: data.debtId, amount: data.amount, paymentDate: data.paymentDate, note: data.note, id: generateId() };
       const updatedDebts = s.debts.map((d) => {
         if (d.id !== data.debtId) return d;
         const newAmountPaid = d.amountPaid + data.amount;
@@ -83,7 +83,17 @@ export function useStore() {
           status: (newAmountPaid >= d.totalAmount ? "paid" : "active") as "paid" | "active",
         };
       });
-      return { ...s, debts: updatedDebts, debtPayments: [...s.debtPayments, payment] };
+      const newTransactions = [...s.transactions];
+      if (data.accountId) {
+        const debt = s.debts.find((d) => d.id === data.debtId);
+        newTransactions.push({
+          id: generateId(), type: "expense", accountId: data.accountId,
+          categoryId: "cat-6", amount: data.amount, date: data.paymentDate,
+          note: `Bayar cicilan: ${debt?.name || ""}`,
+          createdAt: new Date().toISOString().split("T")[0],
+        });
+      }
+      return { ...s, debts: updatedDebts, debtPayments: [...s.debtPayments, payment], transactions: newTransactions };
     });
 
   // ── Recurring Bills ───────────────────────────────────
@@ -99,14 +109,15 @@ export function useStore() {
   const deleteBill = (id: string) =>
     update((s) => ({ ...s, recurringBills: s.recurringBills.filter((b) => b.id !== id) }));
 
-  const payBill = (id: string) =>
+  const payBill = (id: string, accountId?: string) =>
     update((s) => {
       const bill = s.recurringBills.find((b) => b.id === id);
       if (!bill) return s;
+      const targetAccountId = accountId || bill.defaultAccountId;
+      if (!targetAccountId) return s;
       const newTx: Transaction = {
-        id: generateId(),
-        type: "expense",
-        accountId: bill.defaultAccountId,
+        id: generateId(), type: "expense",
+        accountId: targetAccountId,
         categoryId: bill.categoryId,
         amount: bill.amount,
         date: new Date().toISOString().split("T")[0],
@@ -143,9 +154,9 @@ export function useStore() {
   const deleteGoal = (id: string) =>
     update((s) => ({ ...s, goals: s.goals.filter((g) => g.id !== id) }));
 
-  const addGoalContribution = (data: Omit<GoalContribution, "id">) =>
+  const addGoalContribution = (data: Omit<GoalContribution, "id"> & { accountId?: string }) =>
     update((s) => {
-      const contribution: GoalContribution = { ...data, id: generateId() };
+      const contribution: GoalContribution = { goalId: data.goalId, amount: data.amount, contributionDate: data.contributionDate, note: data.note, id: generateId() };
       const updatedGoals = s.goals.map((g) => {
         if (g.id !== data.goalId) return g;
         const newAmount = g.currentAmount + data.amount;
@@ -155,7 +166,18 @@ export function useStore() {
           status: (newAmount >= g.targetAmount ? "achieved" : "active") as "achieved" | "active",
         };
       });
-      return { ...s, goals: updatedGoals, goalContributions: [...s.goalContributions, contribution] };
+      const newTransactions = [...s.transactions];
+      if (data.accountId) {
+        const goal = s.goals.find((g) => g.id === data.goalId);
+        newTransactions.push({
+          id: generateId(), type: "transfer", accountId: data.accountId,
+          destinationAccountId: undefined, categoryId: "cat-14",
+          amount: data.amount, date: data.contributionDate,
+          note: `Tabungan target: ${goal?.name || ""}`,
+          createdAt: new Date().toISOString().split("T")[0],
+        });
+      }
+      return { ...s, goals: updatedGoals, goalContributions: [...s.goalContributions, contribution], transactions: newTransactions };
     });
 
   return {
