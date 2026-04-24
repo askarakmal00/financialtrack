@@ -12,9 +12,9 @@ import {
   formatDate,
 } from "@/lib/store";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell, ResponsiveContainer,
-} from "recharts";
+} from "@/lib/charts";
 import { useState } from "react";
 
 const COLORS = ["#3b82f6","#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#ec4899","#f97316"];
