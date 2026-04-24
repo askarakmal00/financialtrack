@@ -153,7 +153,7 @@ export default function ReportsPage() {
               <BarChart data={trendData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                 <XAxis dataKey="name" tick={{ fill: "#5a6d8a", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#5a6d8a", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}M`, ""]} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${Number(v).toFixed(2)}M`, ""]} />
                 <Bar dataKey="pemasukan" fill="#22c55e" radius={[4,4,0,0]} name="Pemasukan" />
                 <Bar dataKey="pengeluaran" fill="#ef4444" radius={[4,4,0,0]} name="Pengeluaran" />
               </BarChart>
@@ -174,7 +174,7 @@ export default function ReportsPage() {
                     <Pie data={categoryData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} dataKey="value" strokeWidth={0}>
                       {categoryData.map((c, i) => <Cell key={i} fill={c.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [formatCurrency(v), ""]} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatCurrency(Number(v)), ""]} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.375rem" }}>

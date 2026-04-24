@@ -141,7 +141,7 @@ export default function DashboardPage() {
                 </defs>
                 <XAxis dataKey="date" tick={{ fill: "#5a6d8a", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#5a6d8a", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v}K`, ""]} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`${v}K`, ""]} />
                 <Area type="monotone" dataKey="income" stroke="#22c55e" fill="url(#incomeGrad)" strokeWidth={2} name="Pemasukan" />
                 <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="url(#expenseGrad)" strokeWidth={2} name="Pengeluaran" />
               </AreaChart>
