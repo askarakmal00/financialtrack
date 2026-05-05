@@ -86,31 +86,61 @@ export default function TransactionsPage() {
       const lines = text.split("\n");
       const newTxs: Omit<Transaction, "id" | "createdAt">[] = [];
       
+      // Auto-detect delimiter based on header
+      const headerLine = lines[0] || "";
+      const delimiter = headerLine.includes(";") ? ";" : ",";
+      
+      const parseCSVLine = (str: string) => {
+        const result = [];
+        let col = "";
+        let inQuotes = false;
+        for (let i = 0; i < str.length; i++) {
+          const char = str[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === delimiter && !inQuotes) {
+            result.push(col);
+            col = "";
+          } else {
+            col += char;
+          }
+        }
+        result.push(col);
+        return result.map(c => c.trim());
+      };
+      
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        const cols = line.split(",");
+        const cols = parseCSVLine(line);
         if (cols.length < 6) continue;
         
-        const typeStr = cols[0].toLowerCase().trim();
-        let dateStr = cols[1].trim();
-        const accName = cols[2].trim().toLowerCase();
-        const destAccName = cols[3]?.trim().toLowerCase();
-        const catName = cols[4]?.trim().toLowerCase();
-        const amount = Number(cols[5]) || 0;
-        const note = cols[6]?.trim() || "";
-        const tag = cols[7]?.trim() || undefined;
+        const typeStr = cols[0].toLowerCase();
+        let dateStr = cols[1];
+        const accName = cols[2].toLowerCase();
+        const destAccName = cols[3]?.toLowerCase();
+        const catName = cols[4]?.toLowerCase();
+        
+        // Remove dots/commas from amount in case of "100.000" or "100,000"
+        const rawAmount = cols[5]?.replace(/\./g, '').replace(/,/g, '') || "";
+        const amount = Number(rawAmount) || 0;
+        
+        const note = cols[6] || "";
+        const tag = cols[7] || undefined;
         
         // Normalize date format if user used "3 Mei 2026" or "DD/MM/YYYY" instead of YYYY-MM-DD
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
           const idnMonths: Record<string, string> = { jan: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", oktober: "10", november: "11", desember: "12" };
-          const match = dateStr.toLowerCase().match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})$/);
+          const match = dateStr.toLowerCase().match(/^(\d{1,2})[\s\-]+([a-z]+)[\s\-]+(\d{4})$/);
           if (match && idnMonths[match[2]]) {
             dateStr = `${match[3]}-${idnMonths[match[2]]}-${match[1].padStart(2, '0')}`;
           } else if (dateStr.includes("/")) {
             const p = dateStr.split("/");
             if (p.length === 3) dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+          } else if (dateStr.includes("-")) {
+            const p = dateStr.split("-");
+            if (p.length === 3 && p[0].length <= 2) dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
           } else {
             const d = new Date(dateStr);
             if (!isNaN(d.getTime())) dateStr = d.toISOString().split("T")[0];
@@ -144,7 +174,7 @@ export default function TransactionsPage() {
         alert(`Berhasil mengimpor ${newTxs.length} transaksi!`);
         setShowBulkModal(false);
       } else {
-        alert("Tidak ada data transaksi valid yang ditemukan dalam CSV.");
+        alert("Tidak ada data transaksi valid yang ditemukan dalam CSV. Pastikan format kolom sudah benar (pisahkan dengan koma atau titik koma).");
       }
     };
     reader.readAsText(file);
