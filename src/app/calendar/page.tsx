@@ -36,7 +36,22 @@ export default function CalendarPage() {
   // Transactions per day
   const txByDate = new Map<string, typeof store.transactions>();
   store.transactions.forEach((t) => {
-    const key = t.date;
+    let key = t.date;
+    // Normalize key if it's not YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+      const idnMonths: Record<string, string> = { jan: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", oktober: "10", november: "11", desember: "12" };
+      const match = key.toLowerCase().match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})$/);
+      if (match && idnMonths[match[2]]) {
+        key = `${match[3]}-${idnMonths[match[2]]}-${match[1].padStart(2, '0')}`;
+      } else if (key.includes("/")) {
+        const p = key.split("/");
+        if (p.length === 3) key = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+      } else {
+        const d = new Date(key);
+        if (!isNaN(d.getTime())) key = d.toISOString().split("T")[0];
+      }
+    }
+    
     if (!txByDate.has(key)) txByDate.set(key, []);
     txByDate.get(key)!.push(t);
   });

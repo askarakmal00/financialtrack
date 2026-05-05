@@ -94,13 +94,28 @@ export default function TransactionsPage() {
         if (cols.length < 6) continue;
         
         const typeStr = cols[0].toLowerCase().trim();
-        const dateStr = cols[1].trim();
+        let dateStr = cols[1].trim();
         const accName = cols[2].trim().toLowerCase();
         const destAccName = cols[3]?.trim().toLowerCase();
         const catName = cols[4]?.trim().toLowerCase();
         const amount = Number(cols[5]) || 0;
         const note = cols[6]?.trim() || "";
         const tag = cols[7]?.trim() || undefined;
+        
+        // Normalize date format if user used "3 Mei 2026" or "DD/MM/YYYY" instead of YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          const idnMonths: Record<string, string> = { jan: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", oktober: "10", november: "11", desember: "12" };
+          const match = dateStr.toLowerCase().match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})$/);
+          if (match && idnMonths[match[2]]) {
+            dateStr = `${match[3]}-${idnMonths[match[2]]}-${match[1].padStart(2, '0')}`;
+          } else if (dateStr.includes("/")) {
+            const p = dateStr.split("/");
+            if (p.length === 3) dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+          } else {
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) dateStr = d.toISOString().split("T")[0];
+          }
+        }
         
         if (!amount) continue;
         
