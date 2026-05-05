@@ -3,6 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
 import { formatCurrency, getAccountBalance, RecurringBill, BillFrequency } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState } from "react";
 
 const FREQ_LABELS: Record<BillFrequency, string> = { weekly: "Mingguan", monthly: "Bulanan", yearly: "Tahunan" };
@@ -244,7 +245,7 @@ export default function BillsPage() {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Nominal</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+                  <CurrencyInput value={form.amount} onChange={(raw) => setForm((f) => ({ ...f, amount: raw }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Frekuensi</label>

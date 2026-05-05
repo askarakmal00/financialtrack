@@ -51,7 +51,7 @@ export function useStore() {
       ...s,
       transactions: [
         ...s.transactions,
-        { ...data, id: generateId(), createdAt: new Date().toISOString().split("T")[0] },
+        { ...data, id: generateId(), createdAt: new Date().toISOString() },
       ],
     }));
 
@@ -90,7 +90,7 @@ export function useStore() {
           id: generateId(), type: "expense", accountId: data.accountId,
           categoryId: "cat-6", amount: data.amount, date: data.paymentDate,
           note: `Bayar cicilan: ${debt?.name || ""}`,
-          createdAt: new Date().toISOString().split("T")[0],
+          createdAt: new Date().toISOString(),
         });
       }
       return { ...s, debts: updatedDebts, debtPayments: [...s.debtPayments, payment], transactions: newTransactions };
@@ -115,14 +115,15 @@ export function useStore() {
       if (!bill) return s;
       const targetAccountId = accountId || bill.defaultAccountId;
       if (!targetAccountId) return s;
+      const now = new Date();
       const newTx: Transaction = {
         id: generateId(), type: "expense",
         accountId: targetAccountId,
         categoryId: bill.categoryId,
         amount: bill.amount,
-        date: new Date().toISOString().split("T")[0],
+        date: now.toISOString().split("T")[0],
         note: `Bayar tagihan: ${bill.name}`,
-        createdAt: new Date().toISOString().split("T")[0],
+        createdAt: now.toISOString(),
       };
       return {
         ...s,
@@ -174,7 +175,7 @@ export function useStore() {
           destinationAccountId: undefined, categoryId: "cat-14",
           amount: data.amount, date: data.contributionDate,
           note: `Tabungan target: ${goal?.name || ""}`,
-          createdAt: new Date().toISOString().split("T")[0],
+          createdAt: new Date().toISOString(),
         });
       }
       return { ...s, goals: updatedGoals, goalContributions: [...s.goalContributions, contribution], transactions: newTransactions };

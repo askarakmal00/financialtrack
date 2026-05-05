@@ -3,6 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
 import { formatCurrency, formatDate, Goal, getAccountBalance } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState } from "react";
 
 const GOAL_ICONS = ["🎯","💻","🏖️","🏠","🚗","💍","📚","✈️","🛡️","💰","🎓","🏋️"];
@@ -14,6 +15,7 @@ export default function GoalsPage() {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [tab, setTab] = useState<"active" | "achieved">("active");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", targetAmount: "", currentAmount: "0", deadline: "", note: "", icon: "🎯" });
   const [contribForm, setContribForm] = useState({ accountId: "", amount: "", contributionDate: new Date().toISOString().split("T")[0], note: "" });
 
@@ -136,6 +138,7 @@ export default function GoalsPage() {
                   <div style={{
                     position: "absolute", top: -30, right: -30, width: 120, height: 120,
                     borderRadius: "50%", backgroundImage: "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1))",
+                    pointerEvents: "none",
                   }} />
 
                   <div className="flex items-center justify-between mb-3">
@@ -154,7 +157,7 @@ export default function GoalsPage() {
                     </div>
                     <div className="flex gap-1">
                       <button className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(goal)}>✏️</button>
-                      <button className="btn btn-danger btn-sm btn-icon" onClick={() => { if (confirm("Hapus target ini?")) deleteGoal(goal.id); }}>🗑️</button>
+                      <button className="btn btn-danger btn-sm btn-icon" onClick={() => setConfirmDeleteId(goal.id)}>🗑️</button>
                     </div>
                   </div>
 
@@ -228,11 +231,11 @@ export default function GoalsPage() {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Target Nominal</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.targetAmount} onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))} />
+                  <CurrencyInput value={form.targetAmount} onChange={(raw) => setForm((f) => ({ ...f, targetAmount: raw }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Dana Terkumpul</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.currentAmount} onChange={(e) => setForm((f) => ({ ...f, currentAmount: e.target.value }))} />
+                  <CurrencyInput value={form.currentAmount} onChange={(raw) => setForm((f) => ({ ...f, currentAmount: raw }))} />
                 </div>
               </div>
               <div className="form-group">
@@ -311,7 +314,7 @@ export default function GoalsPage() {
 
               <div className="form-group">
                 <label className="form-label">Jumlah Tabungan</label>
-                <input className="form-input" type="number" placeholder="0" value={contribForm.amount} onChange={(e) => setContribForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
+                <CurrencyInput value={contribForm.amount} onChange={(raw) => setContribForm((f) => ({ ...f, amount: raw }))} autoFocus />
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal</label>
@@ -325,6 +328,33 @@ export default function GoalsPage() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowContribModal(false)}>Batal</button>
               <button className="btn btn-primary" disabled={!contribForm.accountId || !contribForm.amount || selectedAccBalance < contribAmountNum} onClick={handleContrib}>💰 Tambah Tabungan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmDeleteId(null)}>
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <span className="modal-title">🗑️ Hapus Target?</span>
+              <button className="btn btn-ghost btn-icon" onClick={() => setConfirmDeleteId(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>⚠️</div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)", marginBottom: "0.5rem" }}>
+                  Hapus target ini?
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  Target dan semua data tabungannya akan dihapus permanen.
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setConfirmDeleteId(null)}>Batal</button>
+              <button className="btn btn-danger" onClick={() => { deleteGoal(confirmDeleteId); setConfirmDeleteId(null); }}>Hapus</button>
             </div>
           </div>
         </div>

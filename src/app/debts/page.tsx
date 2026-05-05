@@ -3,6 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
 import { formatCurrency, formatDate, Debt, getAccountBalance } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState } from "react";
 
 export default function DebtsPage() {
@@ -38,7 +39,7 @@ export default function DebtsPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.name || !form.totalAmount) return;
+    if (!form.name || !form.totalAmount || !form.startDate || !form.dueDate) return;
     const data = { name: form.name, lenderName: form.lenderName, totalAmount: Number(form.totalAmount), monthlyInstallment: Number(form.monthlyInstallment) || 0, amountPaid: Number(form.amountPaid) || 0, startDate: form.startDate, dueDate: form.dueDate, note: form.note, status: (Number(form.amountPaid) >= Number(form.totalAmount) ? "paid" : "active") as "paid" | "active" };
     if (editingDebt) updateDebt(editingDebt.id, data);
     else addDebt(data);
@@ -197,17 +198,17 @@ export default function DebtsPage() {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Total Hutang</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.totalAmount} onChange={(e) => setForm((f) => ({ ...f, totalAmount: e.target.value }))} />
+                  <CurrencyInput value={form.totalAmount} onChange={(raw) => setForm((f) => ({ ...f, totalAmount: raw }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Cicilan per Bulan</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.monthlyInstallment} onChange={(e) => setForm((f) => ({ ...f, monthlyInstallment: e.target.value }))} />
+                  <CurrencyInput value={form.monthlyInstallment} onChange={(raw) => setForm((f) => ({ ...f, monthlyInstallment: raw }))} />
                 </div>
               </div>
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Sudah Dibayar</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.amountPaid} onChange={(e) => setForm((f) => ({ ...f, amountPaid: e.target.value }))} />
+                  <CurrencyInput value={form.amountPaid} onChange={(raw) => setForm((f) => ({ ...f, amountPaid: raw }))} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tanggal Mulai</label>
@@ -285,7 +286,7 @@ export default function DebtsPage() {
               )}
               <div className="form-group">
                 <label className="form-label">Jumlah Pembayaran</label>
-                <input className="form-input" type="number" value={payForm.amount} onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
+                <CurrencyInput value={payForm.amount} onChange={(raw) => setPayForm((f) => ({ ...f, amount: raw }))} autoFocus />
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal Bayar</label>

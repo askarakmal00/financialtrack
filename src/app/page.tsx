@@ -21,6 +21,8 @@ const COLORS = ["#3b82f6","#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#ec
 
 export default function DashboardPage() {
   const { store } = useStore();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -33,8 +35,14 @@ export default function DashboardPage() {
 
   // Recent transactions
   const recentTx = [...store.transactions]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 6);
+    .filter((t) => (selectedCategory ? t.categoryId === selectedCategory : true))
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      const ca = a.createdAt || a.date;
+      const cb = b.createdAt || b.date;
+      return cb.localeCompare(ca);
+    })
+    .slice(0, selectedCategory ? 15 : 6);
 
   // Cashflow 30 days
   const cashflowData = Array.from({ length: 14 }, (_, i) => {
@@ -52,6 +60,7 @@ export default function DashboardPage() {
   const expenseByCategory = store.categories
     .filter((c) => c.type !== "income")
     .map((cat) => ({
+      id: cat.id,
       name: cat.name,
       value: store.transactions
         .filter((t) => {
@@ -196,15 +205,25 @@ export default function DashboardPage() {
                 <ResponsiveContainer width={120} height={120}>
                   <PieChart>
                     <Pie data={expenseByCategory} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" strokeWidth={0}>
-                      {expenseByCategory.map((_, i) => (
-                        <Cell key={i} fill={_.color || COLORS[i % COLORS.length]} />
+                      {expenseByCategory.map((c, i) => (
+                        <Cell 
+                          key={i} 
+                          fill={c.color || COLORS[i % COLORS.length]} 
+                          onClick={() => setSelectedCategory(selectedCategory === c.id ? null : c.id)}
+                          style={{ cursor: "pointer", opacity: selectedCategory === c.id || !selectedCategory ? 1 : 0.4 }}
+                        />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                   {expenseByCategory.slice(0, 5).map((c, i) => (
-                    <div key={i} className="flex items-center justify-between">
+                    <div 
+                      key={i} 
+                      className="flex items-center justify-between"
+                      style={{ cursor: "pointer", opacity: selectedCategory === c.id || !selectedCategory ? 1 : 0.4, transition: "opacity 0.2s" }}
+                      onClick={() => setSelectedCategory(selectedCategory === c.id ? null : c.id)}
+                    >
                       <div className="flex items-center gap-2">
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color || COLORS[i % COLORS.length], flexShrink: 0 }} />
                         <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{c.icon} {c.name}</span>

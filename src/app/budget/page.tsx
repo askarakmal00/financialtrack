@@ -3,6 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
 import { formatCurrency, getCategoryExpense } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState } from "react";
 
 export default function BudgetPage() {
@@ -190,7 +191,7 @@ export default function BudgetPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Batas Budget (Rp)</label>
-                <input className="form-input" type="number" placeholder="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
+                <CurrencyInput value={form.amount} onChange={(raw) => setForm((f) => ({ ...f, amount: raw }))} autoFocus />
               </div>
             </div>
             <div className="modal-footer">

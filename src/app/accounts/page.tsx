@@ -3,6 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
 import { getAccountBalance, formatCurrency, Account, AccountType } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState } from "react";
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; icon: string }[] = [
@@ -19,6 +20,7 @@ const COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"
 export default function AccountsPage() {
   const { store, addAccount, updateAccount, deleteAccount } = useStore();
   const [showModal, setShowModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingAcc, setEditingAcc] = useState<Account | null>(null);
   const [form, setForm] = useState({ name: "", type: "cash" as AccountType, initialBalance: "", icon: "💳", color: "#3b82f6" });
 
@@ -88,7 +90,7 @@ export default function AccountsPage() {
             return (
               <div key={acc.id} className="card" style={{ position: "relative", overflow: "hidden" }}>
                 {/* Background accent */}
-                <div style={{ position: "absolute", top: 0, right: 0, width: 80, height: 80, background: `radial-gradient(circle at top right, ${acc.color || "#3b82f6"}22, transparent 70%)`, borderRadius: "0 14px 0 0" }} />
+                <div style={{ position: "absolute", top: 0, right: 0, width: 80, height: 80, background: `radial-gradient(circle at top right, ${acc.color || "#3b82f6"}22, transparent 70%)`, borderRadius: "0 14px 0 0", pointerEvents: "none" }} />
 
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -100,7 +102,7 @@ export default function AccountsPage() {
                   </div>
                   <div className="flex gap-1">
                     <button className="btn btn-ghost btn-sm btn-icon" onClick={() => openEdit(acc)}>✏️</button>
-                    <button className="btn btn-danger btn-sm btn-icon" onClick={() => { if (confirm("Hapus akun ini?")) deleteAccount(acc.id); }}>🗑️</button>
+                    <button className="btn btn-danger btn-sm btn-icon" onClick={() => setConfirmDeleteId(acc.id)}>🗑️</button>
                   </div>
                 </div>
 
@@ -165,7 +167,7 @@ export default function AccountsPage() {
 
               <div className="form-group">
                 <label className="form-label">Saldo Awal</label>
-                <input className="form-input" type="number" placeholder="0" value={form.initialBalance} onChange={(e) => setForm((f) => ({ ...f, initialBalance: e.target.value }))} />
+                <CurrencyInput value={form.initialBalance} onChange={(raw) => setForm((f) => ({ ...f, initialBalance: raw }))} />
               </div>
 
               <div className="form-group">
@@ -191,6 +193,33 @@ export default function AccountsPage() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Batal</button>
               <button className="btn btn-primary" onClick={handleSubmit}>{editingAcc ? "Simpan" : "Tambah"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmDeleteId(null)}>
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <span className="modal-title">🗑️ Hapus Akun?</span>
+              <button className="btn btn-ghost btn-icon" onClick={() => setConfirmDeleteId(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
+                <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>⚠️</div>
+                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)", marginBottom: "0.5rem" }}>
+                  Hapus akun ini?
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  Akun akan dihapus, tetapi transaksinya mungkin akan tetap ada atau menjadi tanpa akun.
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setConfirmDeleteId(null)}>Batal</button>
+              <button className="btn btn-danger" onClick={() => { deleteAccount(confirmDeleteId); setConfirmDeleteId(null); }}>Hapus</button>
             </div>
           </div>
         </div>

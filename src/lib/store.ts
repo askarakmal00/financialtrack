@@ -279,7 +279,10 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(new Date(dateStr));
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 export function generateId(): string {

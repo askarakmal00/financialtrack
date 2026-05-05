@@ -2,7 +2,8 @@
 
 import AppLayout from "@/components/AppLayout";
 import { useStore } from "@/lib/useStore";
-import { formatCurrency, formatDate, Transaction } from "@/lib/store";
+import { formatCurrency, formatDate, Transaction, getTotalBalance } from "@/lib/store";
+import CurrencyInput from "@/components/CurrencyInput";
 import { useState, useMemo } from "react";
 
 type TxFilter = { type: string; categoryId: string; accountId: string; search: string; dateFrom: string; dateTo: string };
@@ -29,7 +30,16 @@ export default function TransactionsPage() {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => {
+        // Sort by date descending, then by createdAt descending for same-day
+        const dateA = a.date;
+        const dateB = b.date;
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        // Same date: sort by createdAt (full ISO or date string)
+        const ca = a.createdAt || a.date;
+        const cb = b.createdAt || b.date;
+        return cb.localeCompare(ca);
+      });
   }, [store, filter]);
 
   const openAdd = () => {
@@ -60,6 +70,7 @@ export default function TransactionsPage() {
 
   const totalIncome = filtered.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = filtered.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const totalBalance = getTotalBalance(store);
 
   return (
     <AppLayout>
@@ -75,15 +86,16 @@ export default function TransactionsPage() {
 
       <div className="page-body">
         {/* Summary */}
-        <div className="grid-3 mb-4">
+        <div className="grid-4 mb-4">
           {[
+            { label: "Total Saldo", value: formatCurrency(totalBalance), color: "var(--accent-blue)" },
             { label: "Total Pemasukan", value: formatCurrency(totalIncome), color: "var(--accent-green)" },
             { label: "Total Pengeluaran", value: formatCurrency(totalExpense), color: "var(--accent-red)" },
             { label: "Selisih", value: formatCurrency(totalIncome - totalExpense), color: totalIncome - totalExpense >= 0 ? "var(--accent-green)" : "var(--accent-red)" },
           ].map((s, i) => (
             <div key={i} className="stat-card">
               <div className="stat-label">{s.label}</div>
-              <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
+              <div className="stat-value" style={{ color: s.color, fontSize: "1.1rem" }}>{s.value}</div>
             </div>
           ))}
         </div>
@@ -192,7 +204,11 @@ export default function TransactionsPage() {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Nominal</label>
-                  <input className="form-input" type="number" placeholder="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} autoFocus />
+                  <CurrencyInput
+                    value={form.amount}
+                    onChange={(raw) => setForm((f) => ({ ...f, amount: raw }))}
+                    autoFocus
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tanggal</label>

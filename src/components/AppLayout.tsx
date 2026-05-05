@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
@@ -28,6 +28,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="app-layout">
@@ -108,7 +113,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div style={{ width: 32 }} />
         </div>
 
-        {children}
+        {mounted ? children : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", opacity: 0.5 }}>
+            Memuat data...
+          </div>
+        )}
       </main>
 
       {/* Bottom nav (mobile) */}
