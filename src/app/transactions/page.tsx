@@ -9,9 +9,10 @@ import { useState, useMemo } from "react";
 type TxFilter = { type: string; categoryId: string; accountId: string; search: string; dateFrom: string; dateTo: string };
 
 export default function TransactionsPage() {
-  const { store, addTransaction, updateTransaction, deleteTransaction } = useStore();
+  const { store, addTransaction, addTransactions, updateTransaction, deleteTransaction } = useStore();
   const [filter, setFilter] = useState<TxFilter>({ type: "", categoryId: "", accountId: "", search: "", dateFrom: "", dateTo: "" });
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [form, setForm] = useState({ type: "expense", accountId: "", destinationAccountId: "", categoryId: "", amount: "", date: new Date().toISOString().split("T")[0], note: "", tag: "" });
 
@@ -62,6 +63,77 @@ export default function TransactionsPage() {
     setShowModal(false);
   };
 
+  const downloadTemplate = () => {
+    const csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan\n"
+      + "pengeluaran,2026-05-01,Uang Tunai,,Makanan,50000,Makan siang\n"
+      + "pemasukan,2026-05-02,Rekening Bank,,Gaji,5000000,Gaji bulan Mei\n"
+      + "transfer,2026-05-03,Uang Tunai,Rekening Bank,,100000,Nabung\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Template_Bulk_Import.csv";
+    link.click();
+  };
+
+  const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n");
+      const newTxs: Omit<Transaction, "id" | "createdAt">[] = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const cols = line.split(",");
+        if (cols.length < 6) continue;
+        
+        const typeStr = cols[0].toLowerCase().trim();
+        const dateStr = cols[1].trim();
+        const accName = cols[2].trim().toLowerCase();
+        const destAccName = cols[3]?.trim().toLowerCase();
+        const catName = cols[4]?.trim().toLowerCase();
+        const amount = Number(cols[5]) || 0;
+        const note = cols[6]?.trim() || "";
+        
+        if (!amount) continue;
+        
+        let type: "income" | "expense" | "transfer" = "expense";
+        if (typeStr === "pemasukan") type = "income";
+        if (typeStr === "transfer") type = "transfer";
+        
+        const acc = store.accounts.find(a => a.name.toLowerCase() === accName) || store.accounts[0];
+        const destAcc = store.accounts.find(a => a.name.toLowerCase() === destAccName);
+        const cat = store.categories.find(c => c.name.toLowerCase() === catName) || store.categories.find(c => c.id === "cat-14") || store.categories[0];
+        
+        newTxs.push({
+          type,
+          date: dateStr,
+          accountId: acc?.id || "",
+          destinationAccountId: type === "transfer" ? destAcc?.id : undefined,
+          categoryId: type === "transfer" ? "cat-14" : (cat?.id || ""),
+          amount,
+          note
+        });
+      }
+      
+      if (newTxs.length > 0) {
+        addTransactions(newTxs);
+        alert(`Berhasil mengimpor ${newTxs.length} transaksi!`);
+        setShowBulkModal(false);
+      } else {
+        alert("Tidak ada data transaksi valid yang ditemukan dalam CSV.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input
+  };
+
   const visibleCategories = store.categories.filter((c) => {
     if (form.type === "income") return c.type === "income" || c.type === "both";
     if (form.type === "expense") return c.type === "expense" || c.type === "both";
@@ -80,7 +152,10 @@ export default function TransactionsPage() {
             <h1 className="page-title">Transaksi</h1>
             <p className="page-subtitle">{filtered.length} transaksi ditemukan</p>
           </div>
-          <button className="btn btn-primary" onClick={openAdd}>+ Tambah</button>
+          <div className="flex gap-2">
+            <button className="btn btn-ghost" onClick={() => setShowBulkModal(true)}>📥 Bulk Import</button>
+            <button className="btn btn-primary" onClick={openAdd}>+ Tambah</button>
+          </div>
         </div>
       </div>
 
@@ -257,6 +332,43 @@ export default function TransactionsPage() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Batal</button>
               <button className="btn btn-primary" onClick={handleSubmit}>{editingTx ? "Simpan" : "Tambah"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkModal && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowBulkModal(false)}>
+          <div className="modal" style={{ maxWidth: 450 }}>
+            <div className="modal-header">
+              <span className="modal-title">📥 Bulk Import Transaksi</span>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowBulkModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: "var(--bg-input)", padding: "1rem", borderRadius: 10, marginBottom: "1rem", border: "1px solid var(--border)" }}>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+                  Anda bisa mengimpor banyak transaksi sekaligus menggunakan file <strong>.CSV</strong>. Kolom harus mengikuti format yang tepat:
+                </p>
+                <div style={{ fontSize: "0.75rem", fontFamily: "monospace", background: "rgba(0,0,0,0.2)", padding: "0.5rem", borderRadius: 6, color: "var(--text-primary)", marginBottom: "1rem", overflowX: "auto" }}>
+                  Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan
+                </div>
+                <button className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={downloadTemplate}>
+                  ⬇️ Download Template CSV
+                </button>
+              </div>
+
+              <div style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: "2rem 1rem", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-blue)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+              >
+                <label style={{ cursor: "pointer", display: "block" }}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📄</div>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)", marginBottom: "0.25rem" }}>Upload File CSV</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Klik di sini untuk memilih file</div>
+                  <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleBulkImport} />
+                </label>
+              </div>
             </div>
           </div>
         </div>

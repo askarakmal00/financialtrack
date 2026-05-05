@@ -55,6 +55,19 @@ export function useStore() {
       ],
     }));
 
+  const addTransactions = (dataList: Omit<Transaction, "id" | "createdAt">[]) =>
+    update((s) => {
+      const newTxs = dataList.map((data) => ({
+        ...data,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      }));
+      return {
+        ...s,
+        transactions: [...s.transactions, ...newTxs],
+      };
+    });
+
   const updateTransaction = (id: string, data: Partial<Transaction>) =>
     update((s) => ({ ...s, transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...data } : t)) }));
 
@@ -186,7 +199,7 @@ export function useStore() {
     // Accounts
     addAccount, updateAccount, deleteAccount,
     // Transactions
-    addTransaction, updateTransaction, deleteTransaction,
+    addTransaction, addTransactions, updateTransaction, deleteTransaction,
     // Debts
     addDebt, updateDebt, deleteDebt, addDebtPayment,
     // Bills
