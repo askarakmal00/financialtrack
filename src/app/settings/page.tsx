@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const handleExportCSV = () => {
     try {
       // Create CSV Header
-      let csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan\n";
+      let csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag\n";
       
       // Add each transaction
       store.transactions.forEach((tx) => {
@@ -35,7 +35,9 @@ export default function SettingsPage() {
         let note = tx.note || "";
         if (note.includes(",")) note = `"${note}"`;
         
-        csvContent += `${typeStr},${tx.date},${accName},${destAccName},${catName},${tx.amount},${note}\n`;
+        const tag = tx.tag || "";
+        
+        csvContent += `${typeStr},${tx.date},${accName},${destAccName},${catName},${tx.amount},${note},${tag}\n`;
       });
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

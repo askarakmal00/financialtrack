@@ -64,10 +64,10 @@ export default function TransactionsPage() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan\n"
-      + "pengeluaran,2026-05-01,Uang Tunai,,Makanan,50000,Makan siang\n"
-      + "pemasukan,2026-05-02,Rekening Bank,,Gaji,5000000,Gaji bulan Mei\n"
-      + "transfer,2026-05-03,Uang Tunai,Rekening Bank,,100000,Nabung\n";
+    const csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag\n"
+      + "pengeluaran,2026-05-01,Uang Tunai,,Makanan,50000,Makan siang,food\n"
+      + "pemasukan,2026-05-02,Rekening Bank,,Gaji,5000000,Gaji bulan Mei,income\n"
+      + "transfer,2026-05-03,Uang Tunai,Rekening Bank,,100000,Nabung,saving\n";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -100,6 +100,7 @@ export default function TransactionsPage() {
         const catName = cols[4]?.trim().toLowerCase();
         const amount = Number(cols[5]) || 0;
         const note = cols[6]?.trim() || "";
+        const tag = cols[7]?.trim() || undefined;
         
         if (!amount) continue;
         
@@ -118,7 +119,8 @@ export default function TransactionsPage() {
           destinationAccountId: type === "transfer" ? destAcc?.id : undefined,
           categoryId: type === "transfer" ? "cat-14" : (cat?.id || ""),
           amount,
-          note
+          note,
+          tag
         });
       }
       
@@ -350,8 +352,8 @@ export default function TransactionsPage() {
                 <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
                   Anda bisa mengimpor banyak transaksi sekaligus menggunakan file <strong>.CSV</strong>. Kolom harus mengikuti format yang tepat:
                 </p>
-                <div style={{ fontSize: "0.75rem", fontFamily: "monospace", background: "rgba(0,0,0,0.2)", padding: "0.5rem", borderRadius: 6, color: "var(--text-primary)", marginBottom: "1rem", overflowX: "auto" }}>
-                  Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan
+                <div style={{ fontSize: "0.75rem", fontFamily: "monospace", background: "rgba(0,0,0,0.2)", padding: "0.5rem", borderRadius: 6, color: "var(--text-primary)", marginBottom: "1rem", overflowX: "auto", whiteSpace: "nowrap" }}>
+                  Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ width: "100%" }} onClick={downloadTemplate}>
                   ⬇️ Download Template CSV
