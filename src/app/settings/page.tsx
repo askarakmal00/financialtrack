@@ -19,40 +19,34 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     try {
-      const dataStr = localStorage.getItem("financeTrackerData") || JSON.stringify(store);
-      const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-      const fileName = `FinTrack_Backup_${new Date().toISOString().split("T")[0]}.json`;
+      // Create CSV Header
+      let csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan\n";
+      
+      // Add each transaction
+      store.transactions.forEach((tx) => {
+        const typeStr = tx.type === "income" ? "pemasukan" : tx.type === "expense" ? "pengeluaran" : "transfer";
+        const accName = store.accounts.find(a => a.id === tx.accountId)?.name || "";
+        const destAccName = tx.destinationAccountId ? (store.accounts.find(a => a.id === tx.destinationAccountId)?.name || "") : "";
+        const catName = store.categories.find(c => c.id === tx.categoryId)?.name || "";
+        
+        // Escape notes if they contain commas
+        let note = tx.note || "";
+        if (note.includes(",")) note = `"${note}"`;
+        
+        csvContent += `${typeStr},${tx.date},${accName},${destAccName},${catName},${tx.amount},${note}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const fileName = `FinTrack_Transaksi_${new Date().toISOString().split("T")[0]}.csv`;
       const linkElement = document.createElement("a");
-      linkElement.setAttribute("href", dataUri);
+      linkElement.setAttribute("href", url);
       linkElement.setAttribute("download", fileName);
       linkElement.click();
     } catch (e) {
-      alert("Gagal mengekspor data");
-    }
-  };
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileReader = new FileReader();
-    if (e.target.files && e.target.files[0]) {
-      fileReader.readAsText(e.target.files[0], "UTF-8");
-      fileReader.onload = (event) => {
-        if (event.target?.result) {
-          try {
-            const result = JSON.parse(event.target.result as string);
-            if (result && result.accounts && result.transactions) {
-              localStorage.setItem("financeTrackerData", event.target.result as string);
-              alert("Data berhasil diimpor!");
-              window.location.reload();
-            } else {
-              alert("Format file tidak valid!");
-            }
-          } catch (e) {
-            alert("Format file rusak atau tidak valid!");
-          }
-        }
-      };
+      alert("Gagal mengekspor data CSV");
     }
   };
 
@@ -152,17 +146,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div style={{ padding: "1rem", background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "0.25rem" }}>🔄 Export / Import Data</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "0.25rem" }}>📥 Export Transaksi (CSV)</div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-                    Backup data Anda atau pindahkan data dari Localhost ke Vercel dengan mudah.
+                    Ekspor seluruh data transaksi Anda ke format CSV/Excel. Anda dapat memodifikasi file tersebut dan mengimpornya kembali via tombol "Bulk Import" di halaman Transaksi.
                   </div>
-                  <div className="flex gap-2">
-                    <button className="btn btn-primary btn-sm" onClick={handleExport}>📥 Export JSON</button>
-                    <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
-                      📤 Import JSON
-                      <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
-                    </label>
-                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={handleExportCSV}>📄 Download CSV</button>
                 </div>
 
                 <div style={{ padding: "1rem", background: "rgba(239,68,68,0.06)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
