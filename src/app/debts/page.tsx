@@ -39,7 +39,10 @@ export default function DebtsPage() {
   };
 
   const handleSubmit = () => {
-    if (!form.name || !form.totalAmount || !form.startDate || !form.dueDate) return;
+    if (!form.name || !form.totalAmount || !form.startDate || !form.dueDate) {
+      alert("Mohon lengkapi Nama Hutang, Total Hutang, Tanggal Mulai, dan Jatuh Tempo.");
+      return;
+    }
     const data = { name: form.name, lenderName: form.lenderName, totalAmount: Number(form.totalAmount), monthlyInstallment: Number(form.monthlyInstallment) || 0, amountPaid: Number(form.amountPaid) || 0, startDate: form.startDate, dueDate: form.dueDate, note: form.note, status: (Number(form.amountPaid) >= Number(form.totalAmount) ? "paid" : "active") as "paid" | "active" };
     if (editingDebt) updateDebt(editingDebt.id, data);
     else addDebt(data);

@@ -205,7 +205,37 @@ export function getStore(): FinanceStore {
       localStorage.setItem(STORE_KEY, JSON.stringify(SEED_DATA));
       return SEED_DATA;
     }
-    return JSON.parse(raw) as FinanceStore;
+    const data = JSON.parse(raw) as FinanceStore;
+    
+    // Auto-migrate bad dates from previous CSV imports
+    let changed = false;
+    if (data && data.transactions) {
+      data.transactions.forEach(t => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
+          changed = true;
+          const idnMonths: Record<string, string> = { jan: "01", februari: "02", maret: "03", april: "04", mei: "05", juni: "06", juli: "07", agustus: "08", september: "09", oktober: "10", november: "11", desember: "12" };
+          const match = t.date.toLowerCase().match(/^(\d{1,2})[\s\-]+([a-z]+)[\s\-]+(\d{4})$/);
+          if (match && idnMonths[match[2]]) {
+            t.date = `${match[3]}-${idnMonths[match[2]]}-${match[1].padStart(2, '0')}`;
+          } else if (t.date.includes("/")) {
+            const p = t.date.split("/");
+            if (p.length === 3) t.date = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+          } else if (t.date.includes("-")) {
+            const p = t.date.split("-");
+            if (p.length === 3 && p[0].length <= 2) t.date = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+          } else {
+            const d = new Date(t.date);
+            if (!isNaN(d.getTime())) t.date = d.toISOString().split("T")[0];
+          }
+        }
+      });
+    }
+
+    if (changed) {
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    }
+    
+    return data;
   } catch {
     return SEED_DATA;
   }
