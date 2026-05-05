@@ -19,6 +19,43 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
+  const handleExport = () => {
+    try {
+      const dataStr = localStorage.getItem("financeTrackerData") || JSON.stringify(store);
+      const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+      const fileName = `FinTrack_Backup_${new Date().toISOString().split("T")[0]}.json`;
+      const linkElement = document.createElement("a");
+      linkElement.setAttribute("href", dataUri);
+      linkElement.setAttribute("download", fileName);
+      linkElement.click();
+    } catch (e) {
+      alert("Gagal mengekspor data");
+    }
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = (event) => {
+        if (event.target?.result) {
+          try {
+            const result = JSON.parse(event.target.result as string);
+            if (result && result.accounts && result.transactions) {
+              localStorage.setItem("financeTrackerData", event.target.result as string);
+              alert("Data berhasil diimpor!");
+              window.location.reload();
+            } else {
+              alert("Format file tidak valid!");
+            }
+          } catch (e) {
+            alert("Format file rusak atau tidak valid!");
+          }
+        }
+      };
+    }
+  };
+
   const statsData = [
     { label: "Total Akun", value: store.accounts.length },
     { label: "Total Transaksi", value: store.transactions.length },
@@ -115,11 +152,17 @@ export default function SettingsPage() {
                 </div>
 
                 <div style={{ padding: "1rem", background: "var(--bg-input)", borderRadius: 10, border: "1px solid var(--border)" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "0.25rem" }}>📤 Export Data (Coming Soon)</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "0.25rem" }}>🔄 Export / Import Data</div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-                    Ekspor data ke format CSV / Excel untuk backup atau analisis lebih lanjut.
+                    Backup data Anda atau pindahkan data dari Localhost ke Vercel dengan mudah.
                   </div>
-                  <button className="btn btn-ghost btn-sm" disabled style={{ opacity: 0.5 }}>Export ke CSV</button>
+                  <div className="flex gap-2">
+                    <button className="btn btn-primary btn-sm" onClick={handleExport}>📥 Export JSON</button>
+                    <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center" }}>
+                      📤 Import JSON
+                      <input type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+                    </label>
+                  </div>
                 </div>
 
                 <div style={{ padding: "1rem", background: "rgba(239,68,68,0.06)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
