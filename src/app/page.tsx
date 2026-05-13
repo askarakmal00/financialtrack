@@ -377,7 +377,7 @@ export default function DashboardPage() {
                   />
                   <Tooltip
                     contentStyle={tooltipStyleBright}
-                    formatter={(v: number) => [formatCurrency(v), "Pengeluaran"]}
+                    formatter={(v: any) => [formatCurrency(Number(v ?? 0)), "Pengeluaran"]}
                     labelStyle={{ color: "#f1f5f9", fontWeight: 700, marginBottom: 4, fontSize: 13 }}
                     itemStyle={{ color: "#e2e8f0" }}
                     cursor={{ fill: "rgba(255,255,255,0.04)" }}
