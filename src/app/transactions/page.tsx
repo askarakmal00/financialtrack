@@ -32,14 +32,15 @@ export default function TransactionsPage() {
         return true;
       })
       .sort((a, b) => {
-        // Sort by date descending, then by createdAt descending for same-day
-        const dateA = a.date;
-        const dateB = b.date;
-        if (dateB !== dateA) return dateB.localeCompare(dateA);
-        // Same date: sort by createdAt (full ISO or date string)
+        // Sort newest date first — direct string comparison works for YYYY-MM-DD
+        if (a.date > b.date) return -1;
+        if (a.date < b.date) return 1;
+        // Same date: sort by createdAt
         const ca = a.createdAt || a.date;
         const cb = b.createdAt || b.date;
-        return cb.localeCompare(ca);
+        if (cb > ca) return 1;
+        if (cb < ca) return -1;
+        return 0;
       });
   }, [store, filter]);
 
@@ -61,6 +62,56 @@ export default function TransactionsPage() {
     if (editingTx) updateTransaction(editingTx.id, data);
     else addTransaction(data);
     setShowModal(false);
+  };
+
+  // --- CSV helpers ---
+  const escapeCSV = (val: string | number | undefined) => {
+    const str = String(val ?? "");
+    // Wrap in quotes if contains comma, quote, or newline
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const rows: string[] = ["Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag"];
+
+      // Export currently-filtered transactions (or all if no filter)
+      filtered.forEach((tx) => {
+        const typeStr = tx.type === "income" ? "pemasukan" : tx.type === "expense" ? "pengeluaran" : "transfer";
+        const accName = store.accounts.find((a) => a.id === tx.accountId)?.name || "";
+        const destAccName = tx.destinationAccountId
+          ? (store.accounts.find((a) => a.id === tx.destinationAccountId)?.name || "")
+          : "";
+        const catName = store.categories.find((c) => c.id === tx.categoryId)?.name || "";
+        rows.push([
+          escapeCSV(typeStr),
+          escapeCSV(tx.date),
+          escapeCSV(accName),
+          escapeCSV(destAccName),
+          escapeCSV(catName),
+          escapeCSV(tx.amount),
+          escapeCSV(tx.note),
+          escapeCSV(tx.tag),
+        ].join(","));
+      });
+
+      // UTF-8 BOM so Excel opens correctly
+      const BOM = "\uFEFF";
+      const csvContent = BOM + rows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const fileName = `FinTrack_Transaksi_${new Date().toISOString().split("T")[0]}.csv`;
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Gagal mengekspor data CSV");
+    }
   };
 
   const downloadTemplate = () => {
@@ -137,7 +188,27 @@ export default function TransactionsPage() {
             dateStr = `${match[3]}-${idnMonths[match[2]]}-${match[1].padStart(2, '0')}`;
           } else if (dateStr.includes("/")) {
             const p = dateStr.split("/");
-            if (p.length === 3) dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+            if (p.length === 3) {
+              const first = parseInt(p[0], 10);
+              const second = parseInt(p[1], 10);
+              const third = parseInt(p[2], 10);
+              // If third part is a 4-digit year (YYYY), detect M/D/YYYY vs D/M/YYYY
+              if (p[2].length === 4) {
+                if (first > 12) {
+                  // first part cannot be month → must be day: D/M/YYYY
+                  dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+                } else {
+                  // first part ≤ 12, assume M/D/YYYY (Excel default for en-US locale)
+                  dateStr = `${p[2]}-${p[0].padStart(2, '0')}-${p[1].padStart(2, '0')}`;
+                }
+              } else if (p[0].length === 4) {
+                // YYYY/MM/DD
+                dateStr = `${p[0]}-${p[1].padStart(2, '0')}-${p[2].padStart(2, '0')}`;
+              } else {
+                // Fallback: assume D/M/YYYY
+                dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
+              }
+            }
           } else if (dateStr.includes("-")) {
             const p = dateStr.split("-");
             if (p.length === 3 && p[0].length <= 2) dateStr = `${p[2]}-${p[1].padStart(2, '0')}-${p[0].padStart(2, '0')}`;
@@ -200,6 +271,7 @@ export default function TransactionsPage() {
             <p className="page-subtitle">{filtered.length} transaksi ditemukan</p>
           </div>
           <div className="flex gap-2">
+            <button className="btn btn-ghost" onClick={handleExportCSV} title={`Export ${filtered.length} transaksi ke CSV`}>📤 Export CSV{filtered.length < store.transactions.length ? ` (${filtered.length})` : ""}</button>
             <button className="btn btn-ghost" onClick={() => setShowBulkModal(true)}>📥 Bulk Import</button>
             <button className="btn btn-primary" onClick={openAdd}>+ Tambah</button>
           </div>

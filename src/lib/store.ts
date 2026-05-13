@@ -274,8 +274,9 @@ export function getTotalBalance(store: FinanceStore): number {
 export function getMonthlyIncome(store: FinanceStore, month: number, year: number): number {
   return store.transactions
     .filter((t) => {
-      const d = new Date(t.date);
-      return t.type === "income" && d.getMonth() + 1 === month && d.getFullYear() === year;
+      const parts = t.date?.split("-");
+      if (!parts || parts.length < 3) return false;
+      return t.type === "income" && Number(parts[1]) === month && Number(parts[0]) === year;
     })
     .reduce((sum, t) => sum + t.amount, 0);
 }
@@ -283,8 +284,9 @@ export function getMonthlyIncome(store: FinanceStore, month: number, year: numbe
 export function getMonthlyExpense(store: FinanceStore, month: number, year: number): number {
   return store.transactions
     .filter((t) => {
-      const d = new Date(t.date);
-      return t.type === "expense" && d.getMonth() + 1 === month && d.getFullYear() === year;
+      const parts = t.date?.split("-");
+      if (!parts || parts.length < 3) return false;
+      return t.type === "expense" && Number(parts[1]) === month && Number(parts[0]) === year;
     })
     .reduce((sum, t) => sum + t.amount, 0);
 }
@@ -292,8 +294,9 @@ export function getMonthlyExpense(store: FinanceStore, month: number, year: numb
 export function getCategoryExpense(categoryId: string, store: FinanceStore, month: number, year: number): number {
   return store.transactions
     .filter((t) => {
-      const d = new Date(t.date);
-      return t.type === "expense" && t.categoryId === categoryId && d.getMonth() + 1 === month && d.getFullYear() === year;
+      const parts = t.date?.split("-");
+      if (!parts || parts.length < 3) return false;
+      return t.type === "expense" && t.categoryId === categoryId && Number(parts[1]) === month && Number(parts[0]) === year;
     })
     .reduce((sum, t) => sum + t.amount, 0);
 }

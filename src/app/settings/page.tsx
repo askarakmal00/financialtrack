@@ -19,38 +19,51 @@ export default function SettingsPage() {
     window.location.reload();
   };
 
+  const escapeCSV = (val: string | number | undefined) => {
+    const str = String(val ?? "");
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
   const handleExportCSV = () => {
     try {
-      // Create CSV Header
-      let csvContent = "Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag\n";
-      
-      // Add each transaction
+      const rows: string[] = ["Tipe,Tanggal,Akun,Tujuan Akun,Kategori,Jumlah,Catatan,Tag"];
       store.transactions.forEach((tx) => {
         const typeStr = tx.type === "income" ? "pemasukan" : tx.type === "expense" ? "pengeluaran" : "transfer";
-        const accName = store.accounts.find(a => a.id === tx.accountId)?.name || "";
-        const destAccName = tx.destinationAccountId ? (store.accounts.find(a => a.id === tx.destinationAccountId)?.name || "") : "";
-        const catName = store.categories.find(c => c.id === tx.categoryId)?.name || "";
-        
-        // Escape notes if they contain commas
-        let note = tx.note || "";
-        if (note.includes(",")) note = `"${note}"`;
-        
-        const tag = tx.tag || "";
-        
-        csvContent += `${typeStr},${tx.date},${accName},${destAccName},${catName},${tx.amount},${note},${tag}\n`;
+        const accName = store.accounts.find((a) => a.id === tx.accountId)?.name || "";
+        const destAccName = tx.destinationAccountId
+          ? (store.accounts.find((a) => a.id === tx.destinationAccountId)?.name || "")
+          : "";
+        const catName = store.categories.find((c) => c.id === tx.categoryId)?.name || "";
+        rows.push([
+          escapeCSV(typeStr),
+          escapeCSV(tx.date),
+          escapeCSV(accName),
+          escapeCSV(destAccName),
+          escapeCSV(catName),
+          escapeCSV(tx.amount),
+          escapeCSV(tx.note),
+          escapeCSV(tx.tag),
+        ].join(","));
       });
-
+      // UTF-8 BOM so Excel opens correctly without garbling Indonesian characters
+      const BOM = "\uFEFF";
+      const csvContent = BOM + rows.join("\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const fileName = `FinTrack_Transaksi_${new Date().toISOString().split("T")[0]}.csv`;
-      const linkElement = document.createElement("a");
-      linkElement.setAttribute("href", url);
-      linkElement.setAttribute("download", fileName);
-      linkElement.click();
-    } catch (e) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
       alert("Gagal mengekspor data CSV");
     }
   };
+
 
   const statsData = [
     { label: "Total Akun", value: store.accounts.length },
